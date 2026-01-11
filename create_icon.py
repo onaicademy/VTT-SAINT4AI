@@ -73,11 +73,11 @@ def create_icon():
         append_images=images[1:]
     )
 
-    print(f"✅ Icon created: {os.path.abspath(icon_path)}")
+    print(f"Icon created: {os.path.abspath(icon_path)}")
 
     # Also save PNG for preview
     images[0].save('icon.png', format='PNG')
-    print(f"✅ PNG preview: {os.path.abspath('icon.png')}")
+    print(f"PNG preview: {os.path.abspath('icon.png')}")
 
 
 if __name__ == "__main__":
