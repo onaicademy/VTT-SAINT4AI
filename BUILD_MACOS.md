@@ -1,16 +1,17 @@
 # VTT - Сборка для macOS
 
-## Шаг 1: Клонировать репозиторий
+## ВАЖНО: Актуальный код на GitHub!
+
+Последняя версия VTT v2.1 с аналитикой уже на GitHub. Просто клонируй и собирай!
+
+## Шаг 1: Клонировать АКТУАЛЬНУЮ версию
 
 ```bash
 cd ~/Desktop
 git clone https://github.com/onaicademy/VTT-SAINT4AI.git
 cd VTT-SAINT4AI
-```
 
-Или если уже есть локальная копия:
-```bash
-cd ~/путь/к/VTT-SAINT4AI
+# Убедись что последняя версия:
 git pull origin main
 ```
 
