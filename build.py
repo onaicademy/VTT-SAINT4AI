@@ -46,7 +46,9 @@ def build():
 
     if os.path.exists(ICON_FILE):
         cmd.extend(['--icon', ICON_FILE])
-        print(f"Using icon: {ICON_FILE}")
+        # Also add icon as data file for window icon at runtime
+        cmd.extend(['--add-data', f'{ICON_FILE};.'])
+        print(f"Using icon: {ICON_FILE} (embedded + data)")
     else:
         print("No icon file found, using default")
 

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VTT Analytics Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0d0015 0%, #1a0a2e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #ff6b35, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header p { color: #8b5cf6; margin-top: 5px; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: rgba(42, 16, 69, 0.8);
+            border: 1px solid #ff6b35;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-card .value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+        .stat-card .label {
+            color: #8b5cf6;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        .stat-card.highlight { border-color: #39ff14; }
+        .stat-card.highlight .value { color: #39ff14; }
+        .chart-container {
+            background: rgba(42, 16, 69, 0.8);
+            border: 1px solid #ff6b35;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-container h3 {
+            color: #ff6b35;
+            margin-bottom: 15px;
+        }
+        .table-container {
+            background: rgba(42, 16, 69, 0.8);
+            border: 1px solid #ff6b35;
+            border-radius: 12px;
+            padding: 20px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #3d1a5c;
+        }
+        th { color: #ff6b35; }
+        td { color: #e0e0e0; }
+        tr:hover { background: rgba(255, 107, 53, 0.1); }
+        .refresh-btn {
+            background: linear-gradient(90deg, #ff6b35, #ff9f1c);
+            border: none;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-bottom: 20px;
+        }
+        .refresh-btn:hover { opacity: 0.9; }
+        .loading { text-align: center; padding: 50px; color: #8b5cf6; }
+        .error { color: #ff0080; text-align: center; padding: 20px; }
+        .config-section {
+            background: rgba(42, 16, 69, 0.5);
+            border: 1px dashed #8b5cf6;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .config-section input {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #3d1a5c;
+            border-radius: 8px;
+            background: #1a0a2e;
+            color: #fff;
+        }
+        .config-section button {
+            background: #39ff14;
+            border: none;
+            color: #000;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .two-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .two-cols { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>VTT Analytics</h1>
+        <p>@SAINT4AI Dashboard</p>
+    </div>
+
+    <!-- Config Section (shown if not configured) -->
+    <div class="config-section" id="configSection">
+        <h3 style="color: #ff6b35; margin-bottom: 15px;">⚙️ Настройка Supabase</h3>
+        <input type="text" id="supabaseUrl" placeholder="Supabase URL (https://xxx.supabase.co)">
+        <input type="text" id="supabaseKey" placeholder="Supabase Anon Key">
+        <button onclick="saveConfig()">Сохранить и загрузить данные</button>
+    </div>
+
+    <button class="refresh-btn" onclick="loadData()" id="refreshBtn" style="display:none;">🔄 Обновить данные</button>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+            <div class="value" id="totalInstalls">-</div>
+            <div class="label">Всего установок</div>
+        </div>
+        <div class="stat-card highlight">
+            <div class="value" id="activeToday">-</div>
+            <div class="label">Активных сегодня</div>
+        </div>
+        <div class="stat-card">
+            <div class="value" id="activeWeek">-</div>
+            <div class="label">Активных за неделю</div>
+        </div>
+        <div class="stat-card">
+            <div class="value" id="totalRecordings">-</div>
+            <div class="label">Всего записей</div>
+        </div>
+        <div class="stat-card">
+            <div class="value" id="recordingsToday">-</div>
+            <div class="label">Записей сегодня</div>
+        </div>
+        <div class="stat-card highlight">
+            <div class="value" id="premiumUsers">-</div>
+            <div class="label">Premium юзеров</div>
+        </div>
+    </div>
+
+    <div class="two-cols">
+        <!-- Daily Chart -->
+        <div class="chart-container">
+            <h3>📊 Активность по дням</h3>
+            <canvas id="dailyChart"></canvas>
+        </div>
+
+        <!-- Events Chart -->
+        <div class="chart-container">
+            <h3>🎯 Популярные события</h3>
+            <canvas id="eventsChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Recent Events Table -->
+    <div class="table-container">
+        <h3 style="color: #ff6b35; margin-bottom: 15px;">📋 Последние события</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Время</th>
+                    <th>Устройство</th>
+                    <th>Событие</th>
+                    <th>Данные</th>
+                </tr>
+            </thead>
+            <tbody id="eventsTable">
+                <tr><td colspan="4" class="loading">Загрузка...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        let supabase = null;
+        let dailyChart = null;
+        let eventsChart = null;
+
+        // Check saved config
+        const savedUrl = localStorage.getItem('vtt_supabase_url');
+        const savedKey = localStorage.getItem('vtt_supabase_key');
+
+        if (savedUrl && savedKey) {
+            document.getElementById('supabaseUrl').value = savedUrl;
+            document.getElementById('supabaseKey').value = savedKey;
+            initSupabase(savedUrl, savedKey);
+        }
+
+        function saveConfig() {
+            const url = document.getElementById('supabaseUrl').value.trim();
+            const key = document.getElementById('supabaseKey').value.trim();
+
+            if (!url || !key) {
+                alert('Введите URL и ключ Supabase');
+                return;
+            }
+
+            localStorage.setItem('vtt_supabase_url', url);
+            localStorage.setItem('vtt_supabase_key', key);
+            initSupabase(url, key);
+        }
+
+        function initSupabase(url, key) {
+            supabase = window.supabase.createClient(url, key);
+            document.getElementById('configSection').style.display = 'none';
+            document.getElementById('refreshBtn').style.display = 'inline-block';
+            loadData();
+        }
+
+        async function loadData() {
+            if (!supabase) return;
+
+            try {
+                // Load stats
+                const { data: stats } = await supabase.from('vtt_stats').select('*').single();
+                if (stats) {
+                    document.getElementById('totalInstalls').textContent = stats.total_installs || 0;
+                    document.getElementById('activeToday').textContent = stats.active_today || 0;
+                    document.getElementById('activeWeek').textContent = stats.active_week || 0;
+                    document.getElementById('totalRecordings').textContent = stats.total_recordings || 0;
+                    document.getElementById('recordingsToday').textContent = stats.recordings_today || 0;
+                    document.getElementById('premiumUsers').textContent = stats.premium_users || 0;
+                }
+
+                // Load daily stats
+                const { data: daily } = await supabase
+                    .from('vtt_daily_stats')
+                    .select('*')
+                    .order('date', { ascending: true })
+                    .limit(14);
+
+                if (daily && daily.length > 0) {
+                    updateDailyChart(daily);
+                }
+
+                // Load event stats
+                const { data: eventStats } = await supabase
+                    .from('vtt_event_stats')
+                    .select('*')
+                    .limit(10);
+
+                if (eventStats && eventStats.length > 0) {
+                    updateEventsChart(eventStats);
+                }
+
+                // Load recent events
+                const { data: events } = await supabase
+                    .from('vtt_events')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+
+                if (events) {
+                    updateEventsTable(events);
+                }
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+
+        function updateDailyChart(data) {
+            const ctx = document.getElementById('dailyChart').getContext('2d');
+
+            if (dailyChart) dailyChart.destroy();
+
+            dailyChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.date),
+                    datasets: [{
+                        label: 'События',
+                        data: data.map(d => d.events),
+                        borderColor: '#ff6b35',
+                        backgroundColor: 'rgba(255, 107, 53, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: 'Уникальные юзеры',
+                        data: data.map(d => d.unique_users),
+                        borderColor: '#00d4ff',
+                        backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { labels: { color: '#fff' } } },
+                    scales: {
+                        x: { ticks: { color: '#8b5cf6' }, grid: { color: '#3d1a5c' } },
+                        y: { ticks: { color: '#8b5cf6' }, grid: { color: '#3d1a5c' } }
+                    }
+                }
+            });
+        }
+
+        function updateEventsChart(data) {
+            const ctx = document.getElementById('eventsChart').getContext('2d');
+
+            if (eventsChart) eventsChart.destroy();
+
+            eventsChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(d => d.event_type),
+                    datasets: [{
+                        data: data.map(d => d.count),
+                        backgroundColor: [
+                            '#ff6b35', '#00d4ff', '#39ff14', '#ff0080',
+                            '#ffdd00', '#8b5cf6', '#ff9f1c', '#e0e0e0',
+                            '#ff69b4', '#1a0a2e'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { labels: { color: '#fff' } } }
+                }
+            });
+        }
+
+        function updateEventsTable(events) {
+            const tbody = document.getElementById('eventsTable');
+            tbody.innerHTML = events.map(e => `
+                <tr>
+                    <td>${new Date(e.created_at).toLocaleString('ru')}</td>
+                    <td>${e.device_id.substring(0, 8)}...</td>
+                    <td>${e.event_type}</td>
+                    <td>${JSON.stringify(e.event_data || {})}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            if (supabase) loadData();
+        }, 30000);
+    </script>
+</body>
+</html>

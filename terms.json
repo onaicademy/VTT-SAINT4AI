@@ -1,0 +1,119 @@
+{
+  "_comment": "Словарь терминов для AI-мозга. Добавляй свои термины!",
+
+  "programming": {
+    "мейк": "make",
+    "энэйтен": "n8n",
+    "гитхаб": "GitHub",
+    "гит": "Git",
+    "реакт": "React",
+    "вью": "Vue",
+    "ангуляр": "Angular",
+    "ноджс": "Node.js",
+    "нода": "Node",
+    "джаваскрипт": "JavaScript",
+    "тайпскрипт": "TypeScript",
+    "питон": "Python",
+    "пайтон": "Python",
+    "джава": "Java",
+    "котлин": "Kotlin",
+    "свифт": "Swift",
+    "раст": "Rust",
+    "гоу": "Go",
+    "голанг": "Golang",
+    "сиплюсплюс": "C++",
+    "сишарп": "C#",
+    "пхп": "PHP",
+    "руби": "Ruby",
+    "скала": "Scala"
+  },
+
+  "devops": {
+    "докер": "Docker",
+    "кубернетис": "Kubernetes",
+    "кубер": "Kubernetes",
+    "кубик": "Kubernetes",
+    "терраформ": "Terraform",
+    "ансибл": "Ansible",
+    "дженкинс": "Jenkins",
+    "гитлаб": "GitLab",
+    "сиайсиди": "CI/CD",
+    "девопс": "DevOps",
+    "амазон": "AWS",
+    "авс": "AWS",
+    "азур": "Azure",
+    "гугл клауд": "Google Cloud"
+  },
+
+  "web": {
+    "апи": "API",
+    "рест": "REST",
+    "графкюэль": "GraphQL",
+    "вебсокет": "WebSocket",
+    "эйчтимиэль": "HTML",
+    "цсс": "CSS",
+    "джейсон": "JSON",
+    "иксэмэль": "XML",
+    "юрл": "URL",
+    "юай": "UI",
+    "юэкс": "UX",
+    "фронтенд": "frontend",
+    "бэкенд": "backend",
+    "фуллстек": "fullstack"
+  },
+
+  "databases": {
+    "скюэль": "SQL",
+    "постгрес": "PostgreSQL",
+    "майскюэль": "MySQL",
+    "монго": "MongoDB",
+    "редис": "Redis",
+    "эластик": "Elasticsearch",
+    "файрбейс": "Firebase",
+    "супабейс": "Supabase"
+  },
+
+  "ai_ml": {
+    "машинлернинг": "machine learning",
+    "диплернинг": "deep learning",
+    "нейросеть": "neural network",
+    "трансформер": "transformer",
+    "джипити": "GPT",
+    "чатджипити": "ChatGPT",
+    "клод": "Claude",
+    "мидджорни": "Midjourney",
+    "стейбл": "Stable Diffusion",
+    "лама": "LLaMA",
+    "грок": "Groq",
+    "виспер": "Whisper",
+    "опенай": "OpenAI",
+    "антропик": "Anthropic"
+  },
+
+  "tools": {
+    "вскод": "VS Code",
+    "вижуалстудио": "Visual Studio",
+    "интелиджей": "IntelliJ",
+    "пайчарм": "PyCharm",
+    "вебшторм": "WebStorm",
+    "постман": "Postman",
+    "фигма": "Figma",
+    "нотион": "Notion",
+    "слак": "Slack",
+    "дискорд": "Discord",
+    "телеграм": "Telegram",
+    "зум": "Zoom"
+  },
+
+  "common_tech": {
+    "лайнакс": "Linux",
+    "линукс": "Linux",
+    "убунту": "Ubuntu",
+    "макос": "macOS",
+    "виндоус": "Windows",
+    "айос": "iOS",
+    "андроид": "Android",
+    "хром": "Chrome",
+    "файрфокс": "Firefox"
+  }
+}
