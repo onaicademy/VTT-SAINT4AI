@@ -1,84 +1,85 @@
-"""
-Create icon for VTT @SAINT4AI
-"""
-from PIL import Image, ImageDraw, ImageFont
+"""Create premium microphone icon for VTT"""
+from PIL import Image, ImageDraw
 import os
 
-def create_icon():
-    """Create app icon with microphone symbol."""
-    sizes = [256, 128, 64, 48, 32, 16]
-    images = []
+def create_premium_icon():
+    """Create sleek premium icon with microphone."""
+    size = 256
+    img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
 
-    for size in sizes:
-        # Create image with gradient background
-        img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(img)
+    cx, cy = size // 2, size // 2
 
-        # Draw circular background
-        padding = size // 16
-        draw.ellipse(
-            [padding, padding, size - padding, size - padding],
-            fill=(45, 90, 39),  # Dark green
-            outline=(60, 120, 50)
-        )
+    # Outer glow effect
+    for i in range(15):
+        alpha = int(40 - i * 2.5)
+        r = 115 + i * 2
+        draw.ellipse([cx-r, cy-r, cx+r, cy+r], fill=(99, 102, 241, alpha))
 
-        # Draw microphone symbol (simplified)
-        center = size // 2
-        mic_width = size // 4
-        mic_height = size // 3
+    # Main dark circle
+    r = 110
+    draw.ellipse([cx-r, cy-r, cx+r, cy+r], fill=(15, 15, 20, 255))
 
-        # Microphone body
-        draw.rounded_rectangle(
-            [center - mic_width//2, size//4,
-             center + mic_width//2, size//4 + mic_height],
-            radius=mic_width//2,
-            fill=(255, 255, 255)
-        )
+    # Inner gradient circle
+    r = 102
+    draw.ellipse([cx-r, cy-r, cx+r, cy+r], fill=(22, 22, 28, 255))
 
-        # Microphone stand arc
-        arc_size = size // 3
-        draw.arc(
-            [center - arc_size//2, size//3,
-             center + arc_size//2, size//3 + arc_size],
-            start=0, end=180,
-            fill=(255, 255, 255),
-            width=max(2, size//20)
-        )
+    # Accent border
+    r = 98
+    draw.ellipse([cx-r, cy-r, cx+r, cy+r], outline=(99, 102, 241, 200), width=2)
 
-        # Stand line
-        line_width = max(2, size//20)
-        draw.line(
-            [center, size//3 + arc_size//2, center, size - size//4],
-            fill=(255, 255, 255),
-            width=line_width
-        )
+    # Microphone - premium design
+    accent = (99, 102, 241, 255)  # Purple accent
+    white = (255, 255, 255, 255)
+    gray = (160, 160, 170, 255)
 
-        # Stand base
-        base_width = size // 4
-        draw.line(
-            [center - base_width//2, size - size//4,
-             center + base_width//2, size - size//4],
-            fill=(255, 255, 255),
-            width=line_width
-        )
+    # Mic body dimensions
+    mic_w = 40
+    mic_h = 75
+    mic_top = cy - 50
 
-        images.append(img)
+    # Mic capsule (rounded rectangle effect)
+    # Top ellipse
+    draw.ellipse([cx - mic_w//2, mic_top, cx + mic_w//2, mic_top + mic_w], fill=accent)
+    # Body
+    draw.rectangle([cx - mic_w//2, mic_top + mic_w//2, cx + mic_w//2, mic_top + mic_h], fill=accent)
+    # Bottom ellipse
+    draw.ellipse([cx - mic_w//2, mic_top + mic_h - mic_w//2, cx + mic_w//2, mic_top + mic_h + mic_w//2], fill=accent)
 
-    # Save as ICO
-    icon_path = 'icon.ico'
-    images[0].save(
-        icon_path,
-        format='ICO',
-        sizes=[(s, s) for s in sizes],
-        append_images=images[1:]
-    )
+    # Mic grille effect (horizontal lines)
+    grille_color = (70, 72, 180, 255)
+    for i in range(5):
+        y = mic_top + 18 + i * 11
+        draw.line([cx - 14, y, cx + 14, y], fill=grille_color, width=2)
 
-    print(f"Icon created: {os.path.abspath(icon_path)}")
+    # Highlight on mic (shine effect)
+    draw.line([cx - 12, mic_top + 12, cx - 12, mic_top + mic_h - 5], fill=(140, 142, 255, 150), width=3)
 
-    # Also save PNG for preview
-    images[0].save('icon.png', format='PNG')
-    print(f"PNG preview: {os.path.abspath('icon.png')}")
+    # Stand arc
+    arc_y = mic_top + mic_h + 12
+    draw.arc([cx - 35, arc_y - 25, cx + 35, arc_y + 25], start=0, end=180, fill=gray, width=4)
 
+    # Stand vertical
+    stand_y = arc_y + 12
+    draw.line([cx, stand_y, cx, stand_y + 28], fill=gray, width=4)
+
+    # Stand base
+    base_y = stand_y + 28
+    draw.line([cx - 22, base_y, cx + 22, base_y], fill=gray, width=4)
+    # Base feet
+    draw.ellipse([cx - 25, base_y - 3, cx - 19, base_y + 3], fill=gray)
+    draw.ellipse([cx + 19, base_y - 3, cx + 25, base_y + 3], fill=gray)
+
+    # Save multi-size ICO
+    sizes_list = [256, 128, 64, 48, 32, 16]
+    images = [img.resize((s, s), Image.Resampling.LANCZOS) for s in sizes_list]
+
+    images[0].save('icon.ico', format='ICO', sizes=[(s, s) for s in sizes_list], append_images=images[1:])
+    img.save('icon.png', format='PNG')
+
+    print(f"Premium icon created!")
+    print(f"  ICO: {os.path.abspath('icon.ico')}")
+    print(f"  PNG: {os.path.abspath('icon.png')}")
 
 if __name__ == "__main__":
-    create_icon()
+    create_premium_icon()
