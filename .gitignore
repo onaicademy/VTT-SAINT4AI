@@ -1,0 +1,23 @@
+# Build
+build/
+dist/
+*.spec
+*.exe
+installer_output/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/
+
+# Settings (user-specific)
+settings.json
+
+# Temp files
+*.wav
+temp_*
+*.ico
+*.png
