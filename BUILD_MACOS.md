@@ -66,6 +66,12 @@ git checkout -b macos
 - Закоммить все изменения
 - Запушить в ветку macos: `git push -u origin macos`
 
+6. **ВАЖНО - Аналитика:**
+   - Файл `analytics.py` уже настроен с Supabase
+   - НЕ МЕНЯТЬ URL и ключи в analytics.py - они уже правильные
+   - Supabase URL: https://qiyekjrpcewewxumhifc.supabase.co
+   - База уже создана и работает
+
 Начни с чтения текущего voice_to_text.py и адаптируй под macOS.
 ```
 
