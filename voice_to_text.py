@@ -842,8 +842,35 @@ class VoiceToTextApp(ctk.CTk):
         else:
             self.stop_recording()
 
+    def play_start_sound(self):
+        """Premium start sound - ascending chord."""
+        def play():
+            for freq in [523, 659, 784]:  # C5, E5, G5
+                winsound.Beep(freq, 80)
+                time.sleep(0.02)
+        threading.Thread(target=play, daemon=True).start()
+
+    def play_stop_sound(self):
+        """Premium stop sound - descending chord."""
+        def play():
+            for freq in [784, 659, 523]:  # G5, E5, C5
+                winsound.Beep(freq, 80)
+                time.sleep(0.02)
+        threading.Thread(target=play, daemon=True).start()
+
+    def play_success_sound(self):
+        """Premium success chime."""
+        def play():
+            winsound.Beep(880, 100)
+            time.sleep(0.05)
+            winsound.Beep(1109, 150)
+        threading.Thread(target=play, daemon=True).start()
+
     def start_recording(self):
+        print("[DEBUG] start_recording called")
+
         if not self.groq_client:
+            print("[DEBUG] No groq_client!")
             self.record_button.status_label.configure(
                 text="Сначала введите API ключ!", text_color=COLORS["warning"]
             )
@@ -854,28 +881,45 @@ class VoiceToTextApp(ctk.CTk):
         self.record_button.start_animation()
 
         if self.settings.get("sound_notifications", True):
-            threading.Thread(target=lambda: winsound.Beep(800, 150), daemon=True).start()
+            self.play_start_sound()
 
         def record():
             try:
                 mic_name = self.mic_combo.get()
                 device_id = self.mic_devices.get(mic_name)
 
+                print(f"[DEBUG] Recording with mic: {mic_name}, device_id: {device_id}")
+                print(f"[DEBUG] Available devices: {self.mic_devices}")
+
+                if device_id is None:
+                    # Try default device
+                    print("[DEBUG] device_id is None, using default")
+                    device_id = sd.default.device[0]
+                    print(f"[DEBUG] Default device: {device_id}")
+
                 def callback(indata, frames, time_info, status):
+                    if status:
+                        print(f"[DEBUG] Audio status: {status}")
                     if self.is_recording:
                         self.audio_data.append(indata.copy())
                         level = np.abs(indata).mean()
-                        normalized = min(1.0, level / 0.05)
-                        self.after(0, lambda: self.level_bar.set(normalized))
-                        self.after(0, lambda: self.record_button.update_wave(normalized))
+                        normalized = min(1.0, level / 0.02)  # More sensitive
+                        self.after(0, lambda l=normalized: self.level_bar.set(l))
+                        self.after(0, lambda l=normalized: self.record_button.update_wave(l))
 
+                print("[DEBUG] Opening InputStream...")
                 with sd.InputStream(device=device_id, samplerate=16000, channels=1,
                                     dtype='int16', callback=callback):
+                    print("[DEBUG] Recording started!")
                     while self.is_recording:
                         time.sleep(0.05)
 
+                print(f"[DEBUG] Recording stopped, got {len(self.audio_data)} chunks")
                 self.after(0, lambda: self.level_bar.set(0))
             except Exception as e:
+                print(f"[ERROR] Recording error: {e}")
+                import traceback
+                traceback.print_exc()
                 self.after(0, lambda: self.record_button.set_success(f"Ошибка: {e}"))
                 self.is_recording = False
 
@@ -883,22 +927,30 @@ class VoiceToTextApp(ctk.CTk):
         self.recording_thread.start()
 
     def stop_recording(self):
+        print("[DEBUG] stop_recording called")
         self.is_recording = False
         self.record_button.stop_animation()
 
         if self.settings.get("sound_notifications", True):
-            threading.Thread(target=lambda: winsound.Beep(400, 150), daemon=True).start()
+            self.play_stop_sound()
 
         if not self.audio_data:
+            print("[DEBUG] No audio data!")
             self.record_button.reset()
             return
+
+        print(f"[DEBUG] Processing {len(self.audio_data)} audio chunks...")
 
         def process():
             try:
                 audio = np.concatenate(self.audio_data, axis=0)
-                temp_file = "temp_recording.wav"
-                write_wav(temp_file, 16000, audio)
+                print(f"[DEBUG] Audio shape: {audio.shape}, duration: {len(audio)/16000:.1f}s")
 
+                temp_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp_recording.wav")
+                write_wav(temp_file, 16000, audio)
+                print(f"[DEBUG] Saved to: {temp_file}")
+
+                print("[DEBUG] Sending to Groq API...")
                 with open(temp_file, "rb") as f:
                     result = self.groq_client.audio.transcriptions.create(
                         file=(temp_file, f.read()),
@@ -908,6 +960,8 @@ class VoiceToTextApp(ctk.CTk):
                         prompt="Расставь пунктуацию правильно."
                     )
 
+                print(f"[DEBUG] API response: {result}")
+
                 try:
                     os.remove(temp_file)
                 except:
@@ -916,19 +970,27 @@ class VoiceToTextApp(ctk.CTk):
                 text = result.strip() if isinstance(result, str) else str(result).strip()
 
                 if text:
+                    print(f"[DEBUG] Got text: {text}")
                     self.after(0, lambda: self.handle_result(text))
                 else:
+                    print("[DEBUG] Empty result")
                     self.after(0, lambda: self.record_button.set_success("Пустой результат"))
                     self.after(2000, self.record_button.reset)
             except Exception as e:
+                print(f"[ERROR] Processing error: {e}")
+                import traceback
+                traceback.print_exc()
                 self.after(0, lambda: self.record_button.set_success(f"Ошибка: {e}"))
                 self.after(3000, self.record_button.reset)
 
         threading.Thread(target=process, daemon=True).start()
 
     def handle_result(self, text):
+        print(f"[DEBUG] handle_result: {text}")
+
         if self.settings.get("copy_to_clipboard", True):
             pyperclip.copy(text)
+            print("[DEBUG] Copied to clipboard")
 
         display = text[:40] + "..." if len(text) > 40 else text
         self.record_button.set_success(f"Готово: {display}")
@@ -937,11 +999,12 @@ class VoiceToTextApp(ctk.CTk):
             time.sleep(0.15)
             try:
                 pyautogui.hotkey('ctrl', 'v')
-            except:
-                pass
+                print("[DEBUG] Auto-pasted")
+            except Exception as e:
+                print(f"[DEBUG] Auto-paste failed: {e}")
 
         if self.settings.get("sound_notifications", True):
-            threading.Thread(target=lambda: winsound.Beep(600, 100), daemon=True).start()
+            self.play_success_sound()
 
         self.after(3000, self.record_button.reset)
 
