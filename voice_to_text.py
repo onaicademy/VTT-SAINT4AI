@@ -32,7 +32,7 @@ except ImportError:
 
 # App info
 APP_NAME = "VTT"
-APP_VERSION = "2.2"
+APP_VERSION = "2.3"
 CONFIG_FILE = "settings.json"
 HISTORY_FILE = "history.json"
 TERMS_FILE = "terms.json"
@@ -657,23 +657,50 @@ class FloatingWidget(ctk.CTkToplevel):
         self.canvas.bind("<B1-Motion>", self._on_drag)
         self.canvas.bind("<ButtonRelease-1>", self._on_release)
         self.canvas.bind("<Double-Button-1>", self._on_double_click)
-        # Mouse wheel for resizing
+        # Mouse wheel for resizing (including touchpad)
         self.canvas.bind("<MouseWheel>", self._on_mousewheel)
         self.bind("<MouseWheel>", self._on_mousewheel)
+        # Touchpad horizontal scroll (Shift+Wheel)
+        self.canvas.bind("<Shift-MouseWheel>", self._on_mousewheel)
+        self.bind("<Shift-MouseWheel>", self._on_mousewheel)
+        # Linux scroll events
+        self.canvas.bind("<Button-4>", lambda e: self._on_mousewheel_linux(1))
+        self.canvas.bind("<Button-5>", lambda e: self._on_mousewheel_linux(-1))
+
+        # Track accumulated delta for smooth touchpad
+        self._scroll_accumulator = 0
 
         self.draw_idle()
         self.withdraw()  # Start hidden
 
     def _on_mousewheel(self, event):
-        """Resize widget with mouse wheel."""
-        # event.delta > 0 = scroll up = increase size
-        # event.delta < 0 = scroll down = decrease size
+        """Resize widget with mouse wheel or touchpad."""
+        # Touchpad sends small deltas, mouse wheel sends 120/-120
+        # Accumulate for smooth touchpad scrolling
+        self._scroll_accumulator += event.delta
+
+        # Threshold: 60 for touchpad (half of mouse wheel step)
+        threshold = 60
+        if abs(self._scroll_accumulator) >= threshold:
+            step = 8
+            if self._scroll_accumulator > 0:
+                new_size = min(self.MAX_SIZE, self.size + step)
+            else:
+                new_size = max(self.MIN_SIZE, self.size - step)
+
+            if new_size != self.size:
+                self._resize(new_size)
+
+            # Reset accumulator but keep remainder
+            self._scroll_accumulator = self._scroll_accumulator % threshold if self._scroll_accumulator > 0 else -(abs(self._scroll_accumulator) % threshold)
+
+    def _on_mousewheel_linux(self, direction):
+        """Handle Linux scroll events."""
         step = 8
-        if event.delta > 0:
+        if direction > 0:
             new_size = min(self.MAX_SIZE, self.size + step)
         else:
             new_size = max(self.MIN_SIZE, self.size - step)
-
         if new_size != self.size:
             self._resize(new_size)
 
@@ -1614,14 +1641,38 @@ class VoiceToTextApp(ctk.CTk):
         )
         self.hotkey_label.pack(side="left")
 
-        ctk.CTkButton(
+        # Change button (visible by default)
+        self.hotkey_change_btn = ctk.CTkButton(
             hk_row, text=self.t("change"), width=70, height=28,
             font=ctk.CTkFont(size=11),
             fg_color=COLORS["bg_secondary"],
             hover_color=COLORS["bg_hover"],
             border_width=1, border_color=COLORS["border"],
-            command=self.change_hotkey
-        ).pack(side="right")
+            command=self.start_hotkey_capture
+        )
+        self.hotkey_change_btn.pack(side="right")
+
+        # Save button (hidden by default)
+        self.hotkey_save_btn = ctk.CTkButton(
+            hk_row, text="Сохранить", width=80, height=28,
+            font=ctk.CTkFont(size=11),
+            fg_color=COLORS["success"],
+            hover_color=COLORS["accent"],
+            command=self.save_hotkey_capture
+        )
+        # Cancel button
+        self.hotkey_cancel_btn = ctk.CTkButton(
+            hk_row, text="✕", width=28, height=28,
+            font=ctk.CTkFont(size=11),
+            fg_color=COLORS["error"],
+            hover_color=COLORS["recording"],
+            command=self.cancel_hotkey_capture
+        )
+
+        # State for hotkey capture
+        self._hotkey_capturing = False
+        self._hotkey_hook = None
+        self._captured_keys = set()
 
         # Options
         self._section(settings_frame, self.t("options"))
@@ -2083,25 +2134,115 @@ class VoiceToTextApp(ctk.CTk):
             self.ai_benefits_label.pack_forget()
             self.ai_warn_label.pack_forget()
 
-    def change_hotkey(self):
-        self.hotkey_label.configure(text="...", text_color=COLORS["warning"])
+    def start_hotkey_capture(self):
+        """Start capturing hotkey - show save/cancel buttons."""
         if self.current_hotkey:
             try: keyboard.remove_hotkey(self.current_hotkey)
             except: pass
+            self.current_hotkey = None
 
-        def capture():
-            e = keyboard.read_event(suppress=True)
+        self._hotkey_capturing = True
+        self._captured_keys = set()
+
+        # Switch buttons
+        self.hotkey_change_btn.pack_forget()
+        self.hotkey_cancel_btn.pack(side="right", padx=(4, 0))
+        self.hotkey_save_btn.pack(side="right")
+
+        self.hotkey_label.configure(text="Нажми клавиши...", text_color=COLORS["warning"])
+
+        def on_key_event(e):
+            if not self._hotkey_capturing:
+                return
+            key = (e.name or '').lower()
+            if not key or key == 'unknown':
+                return
+
+            # Normalize key names
+            normalized = key
+            if 'ctrl' in key: normalized = 'ctrl'
+            elif 'shift' in key: normalized = 'shift'
+            elif 'alt' in key: normalized = 'alt'
+            elif 'windows' in key or key == 'win': normalized = 'win'
+
             if e.event_type == keyboard.KEY_DOWN:
-                mods = []
-                if keyboard.is_pressed('ctrl'): mods.append('ctrl')
-                if keyboard.is_pressed('shift'): mods.append('shift')
-                if keyboard.is_pressed('alt'): mods.append('alt')
-                key = e.name
-                if key not in ['ctrl','shift','alt','left ctrl','right ctrl','left shift','right shift','left alt','right alt']:
-                    hk = '+'.join(mods + [key]) if mods else key
-                    self.after(0, lambda: self._set_hotkey(hk))
+                self._captured_keys.add(normalized)
+            elif e.event_type == keyboard.KEY_UP:
+                pass  # Keep keys in set until save
 
-        threading.Thread(target=capture, daemon=True).start()
+            # Update label with current keys
+            self._update_hotkey_display()
+
+        self._hotkey_hook = keyboard.hook(on_key_event)
+
+    def _update_hotkey_display(self):
+        """Update hotkey label with currently pressed keys."""
+        if not self._captured_keys:
+            self.hotkey_label.configure(text="Нажми клавиши...", text_color=COLORS["warning"])
+            return
+        # Sort: modifiers first, then other keys
+        mods = []
+        keys = []
+        for k in self._captured_keys:
+            if k in ('ctrl', 'shift', 'alt', 'win'):
+                mods.append(k)
+            else:
+                keys.append(k)
+        mods.sort()
+        keys.sort()
+        display = '+'.join(mods + keys).upper()
+        self.hotkey_label.configure(text=display, text_color=COLORS["accent"])
+
+    def save_hotkey_capture(self):
+        """Save captured hotkey."""
+        if self._hotkey_hook:
+            keyboard.unhook(self._hotkey_hook)
+            self._hotkey_hook = None
+
+        if not self._captured_keys:
+            self.cancel_hotkey_capture()
+            return
+
+        # Build hotkey string
+        mods = []
+        keys = []
+        for k in self._captured_keys:
+            if k in ('ctrl', 'shift', 'alt', 'win'):
+                mods.append(k)
+            else:
+                keys.append(k)
+        mods.sort()
+        keys.sort()
+        hk = '+'.join(mods + keys)
+
+        print(f"[HOTKEY] Saved: {hk}")
+        self._hotkey_capturing = False
+        self._captured_keys = set()
+
+        # Switch buttons back
+        self.hotkey_save_btn.pack_forget()
+        self.hotkey_cancel_btn.pack_forget()
+        self.hotkey_change_btn.pack(side="right")
+
+        self._set_hotkey(hk)
+
+    def cancel_hotkey_capture(self):
+        """Cancel hotkey capture."""
+        if self._hotkey_hook:
+            keyboard.unhook(self._hotkey_hook)
+            self._hotkey_hook = None
+
+        self._hotkey_capturing = False
+        self._captured_keys = set()
+
+        # Switch buttons back
+        self.hotkey_save_btn.pack_forget()
+        self.hotkey_cancel_btn.pack_forget()
+        self.hotkey_change_btn.pack(side="right")
+
+        # Restore original hotkey display
+        self.hotkey_label.configure(text=self.settings["hotkey"].upper(), text_color=COLORS["accent"])
+        self.setup_hotkey()
 
     def _set_hotkey(self, hk):
         self.settings["hotkey"] = hk
@@ -2113,13 +2254,17 @@ class VoiceToTextApp(ctk.CTk):
         if self.current_hotkey:
             try: keyboard.remove_hotkey(self.current_hotkey)
             except: pass
+            self.current_hotkey = None
         try:
+            hk = self.settings["hotkey"]
+            print(f"[HOTKEY] Registering: {hk}")
             self.current_hotkey = keyboard.add_hotkey(
-                self.settings["hotkey"], self.toggle_recording, suppress=True
+                hk, self.toggle_recording, suppress=False, trigger_on_release=False
             )
-            self.record_btn.hint.configure(text=f"или {self.settings['hotkey'].upper()}")
+            self.record_btn.hint.configure(text=f"или {hk.upper()}")
+            print(f"[HOTKEY] Registered successfully: {hk}")
         except Exception as e:
-            print(f"[ERROR] Hotkey: {e}")
+            print(f"[ERROR] Hotkey registration failed: {e}")
 
     def play_sound(self, type_):
         if not self.settings["sounds"]:
