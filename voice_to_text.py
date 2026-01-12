@@ -128,6 +128,11 @@ TEXTS = {
         "ai_brain_benefits": "✓ Исправляет ошибки транскрипции\n✓ Добавляет пунктуацию\n✓ Распознаёт IT-термины\n✓ Улучшает грамматику",
         "ai_brain_context": "Запоминать контекст",
         "ai_processing": "AI улучшает...",
+        # Recording button
+        "press_to_record": "Нажми для записи",
+        "recording_status": "Запись...",
+        "processing": "Обработка...",
+        "sec_format": "{0} сек / {1}",
     },
     "kk": {
         "subtitle": "@SAINT4AI жасаған",
@@ -178,6 +183,11 @@ TEXTS = {
         "ai_brain_benefits": "✓ Транскрипция қателерін түзетеді\n✓ Тыныс белгілерін қосады\n✓ IT терминдерді танады\n✓ Грамматиканы жақсартады",
         "ai_brain_context": "Контекстті есте сақтау",
         "ai_processing": "AI жақсартуда...",
+        # Recording button
+        "press_to_record": "Жазу үшін басыңыз",
+        "recording_status": "Жазылуда...",
+        "processing": "Өңделуде...",
+        "sec_format": "{0} сек / {1}",
     }
 }
 
@@ -477,10 +487,11 @@ class HelpTooltip:
 class PremiumRecordButton(ctk.CTkFrame):
     """Premium animated recording button with integrated background animation."""
 
-    def __init__(self, master, command=None, **kwargs):
+    def __init__(self, master, command=None, translator=None, **kwargs):
         super().__init__(master, fg_color="transparent", **kwargs)
 
         self.command = command
+        self.t = translator or (lambda k: k)  # Translation function
         self.is_recording = False
         self.animation_running = False
         self.pulse_phase = 0.0
@@ -506,7 +517,7 @@ class PremiumRecordButton(ctk.CTkFrame):
 
         # Status text
         self.status = ctk.CTkLabel(
-            self, text="Нажми для записи",
+            self, text=self.t("press_to_record"),
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=COLORS["text_muted"]
         )
@@ -673,8 +684,8 @@ class PremiumRecordButton(ctk.CTkFrame):
         self.is_recording = True
         self.animation_running = True
         self.current_time = 0
-        self.status.configure(text="Запись...", text_color=COLORS["recording"])
-        self.timer_label.configure(text=f"0 сек / {self.max_duration}")
+        self.status.configure(text=self.t("recording_status"), text_color=COLORS["recording"])
+        self.timer_label.configure(text=self.t("sec_format").format(0, self.max_duration))
         self.timer_label.pack(pady=(2, 0))
         self._animate()
 
@@ -683,16 +694,16 @@ class PremiumRecordButton(ctk.CTkFrame):
         self.animation_running = False
         self.audio_level = 0
         self.timer_label.pack_forget()  # Hide timer
-        self.status.configure(text="Обработка...", text_color=COLORS["warning"])
+        self.status.configure(text=self.t("processing"), text_color=COLORS["warning"])
 
     def update_timer(self, seconds):
         """Update the recording timer display."""
         self.current_time = seconds
-        self.timer_label.configure(text=f"{int(seconds)} сек / {self.max_duration}")
+        self.timer_label.configure(text=self.t("sec_format").format(int(seconds), self.max_duration))
 
     def reset(self):
         self.timer_label.pack_forget()  # Hide timer
-        self.status.configure(text="Нажми для записи", text_color=COLORS["text_muted"])
+        self.status.configure(text=self.t("press_to_record"), text_color=COLORS["text_muted"])
         self.draw_idle()
 
     def set_success(self, text):
@@ -1561,7 +1572,7 @@ class VoiceToTextApp(ctk.CTk):
         ).pack(anchor="center")
 
         # Record button (compact)
-        self.record_btn = PremiumRecordButton(main, command=self.toggle_recording)
+        self.record_btn = PremiumRecordButton(main, command=self.toggle_recording, translator=self.t)
         self.record_btn.pack(pady=4)
 
         # Scrollable settings
