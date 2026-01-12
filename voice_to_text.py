@@ -38,8 +38,22 @@ HISTORY_FILE = "history.json"
 TERMS_FILE = "terms.json"
 ADMIN_MODE_FILE = "admin.key"  # If this file exists, admin mode is enabled
 
-# Check if admin mode
-ADMIN_MODE = os.path.exists(ADMIN_MODE_FILE) or "--admin" in sys.argv
+# Check if admin mode - look in bundle dir for PyInstaller
+def _check_admin_mode():
+    # Check command line flag
+    if "--admin" in sys.argv:
+        return True
+    # Check in PyInstaller bundle directory
+    if getattr(sys, 'frozen', False):
+        bundle_dir = sys._MEIPASS
+        if os.path.exists(os.path.join(bundle_dir, ADMIN_MODE_FILE)):
+            return True
+    # Check in current directory (for development)
+    if os.path.exists(ADMIN_MODE_FILE):
+        return True
+    return False
+
+ADMIN_MODE = _check_admin_mode()
 
 # Pixel Gun Style Colors
 COLORS = {
