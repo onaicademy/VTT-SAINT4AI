@@ -2426,6 +2426,39 @@ class VoiceToTextApp(ctk.CTk):
         except Exception as e:
             print(f"[ERROR] Hotkey registration failed: {e}")
 
+    def _normalize_audio(self, audio):
+        """Normalize quiet audio for better speech recognition.
+
+        If audio peak is below threshold, amplify to target level.
+        This helps Whisper API recognize quiet recordings.
+        """
+        # Convert to float for processing
+        audio_float = audio.astype(np.float32)
+
+        # Find peak amplitude
+        peak = np.max(np.abs(audio_float))
+
+        if peak < 1:  # Prevent division by zero
+            return audio
+
+        # Thresholds for int16 audio (-32768 to 32767)
+        quiet_threshold = 5000   # Below this = too quiet
+        target_peak = 20000      # Normalize to this level (not too loud to avoid clipping)
+
+        if peak < quiet_threshold:
+            # Audio is too quiet, normalize it
+            gain = target_peak / peak
+            # Limit gain to prevent extreme amplification of noise
+            gain = min(gain, 10.0)
+            audio_float = audio_float * gain
+            print(f"[AUDIO] Normalized: peak {int(peak)} -> {int(peak * gain)} (gain: {gain:.1f}x)")
+
+            # Clip to valid int16 range and convert back
+            audio_float = np.clip(audio_float, -32767, 32767)
+            return audio_float.astype(np.int16)
+
+        return audio
+
     def play_sound(self, type_):
         if not self.settings["sounds"]:
             return
@@ -2530,6 +2563,10 @@ class VoiceToTextApp(ctk.CTk):
         def process():
             try:
                 audio = np.concatenate(self.audio_data, axis=0)
+
+                # Normalize quiet audio for better recognition
+                audio = self._normalize_audio(audio)
+
                 tmp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rec.wav")
                 write_wav(tmp, 16000, audio)
 
