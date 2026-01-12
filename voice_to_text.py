@@ -384,6 +384,96 @@ class PremiumSounds:
         threading.Thread(target=play, daemon=True).start()
 
 
+class HelpTooltip:
+    """Clickable help icon that shows/hides description."""
+
+    def __init__(self, parent, text, widget_to_bind=None):
+        self.parent = parent
+        self.text = text
+        self.tooltip_window = None
+        self.is_visible = False
+
+        # Create help button
+        self.help_btn = ctk.CTkButton(
+            parent, text="?", width=22, height=22,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=COLORS["bg_secondary"],
+            hover_color=COLORS["accent"],
+            border_width=1, border_color=COLORS["border"],
+            corner_radius=11,
+            command=self.toggle
+        )
+
+    def pack(self, **kwargs):
+        self.help_btn.pack(**kwargs)
+
+    def place(self, **kwargs):
+        self.help_btn.place(**kwargs)
+
+    def toggle(self):
+        if self.is_visible:
+            self.hide()
+        else:
+            self.show()
+
+    def show(self):
+        if self.tooltip_window:
+            return
+
+        self.is_visible = True
+        self.help_btn.configure(fg_color=COLORS["accent"])
+
+        # Create tooltip window
+        self.tooltip_window = ctk.CTkToplevel(self.parent)
+        self.tooltip_window.withdraw()
+        self.tooltip_window.overrideredirect(True)
+
+        # Tooltip frame
+        frame = ctk.CTkFrame(
+            self.tooltip_window,
+            fg_color=COLORS["bg_card"],
+            border_width=1,
+            border_color=COLORS["accent"],
+            corner_radius=8
+        )
+        frame.pack(fill="both", expand=True, padx=2, pady=2)
+
+        # Text
+        label = ctk.CTkLabel(
+            frame, text=self.text,
+            font=ctk.CTkFont(size=11),
+            text_color=COLORS["text_secondary"],
+            wraplength=250,
+            justify="left"
+        )
+        label.pack(padx=12, pady=10)
+
+        # Close button
+        close_btn = ctk.CTkButton(
+            frame, text="Понятно", width=70, height=24,
+            font=ctk.CTkFont(size=10),
+            fg_color=COLORS["accent"],
+            hover_color=COLORS["accent_glow"],
+            command=self.hide
+        )
+        close_btn.pack(pady=(0, 8))
+
+        # Position tooltip
+        self.tooltip_window.update_idletasks()
+        x = self.help_btn.winfo_rootx() + 30
+        y = self.help_btn.winfo_rooty() - 10
+        self.tooltip_window.geometry(f"+{x}+{y}")
+        self.tooltip_window.deiconify()
+        self.tooltip_window.lift()
+
+    def hide(self):
+        self.is_visible = False
+        self.help_btn.configure(fg_color=COLORS["bg_secondary"])
+        if self.tooltip_window:
+            self.tooltip_window.destroy()
+            self.tooltip_window = None
+
+
 class PremiumRecordButton(ctk.CTkFrame):
     """Premium animated recording button with integrated background animation."""
 
