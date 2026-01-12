@@ -121,8 +121,8 @@ TEXTS = {
         "copied": "Скопировано!",
         "deleted": "Удалено",
         # AI Brain
-        "ai_brain": "AI-МОЗГ (LLaMA)",
-        "ai_brain_desc": "Улучшает текст с помощью нейросети LLaMA 3.1",
+        "ai_brain": "AI-МОЗГ",
+        "ai_brain_desc": "Улучшает текст с помощью нейросети",
         "ai_brain_enable": "Включить AI-мозг",
         "ai_brain_warn": "⚠️ Расход API увеличится в 1.5 раза",
         "ai_brain_benefits": "✓ Исправляет ошибки транскрипции\n✓ Добавляет пунктуацию\n✓ Распознаёт IT-термины\n✓ Улучшает грамматику",
@@ -171,8 +171,8 @@ TEXTS = {
         "copied": "Көшірілді!",
         "deleted": "Жойылды",
         # AI Brain
-        "ai_brain": "AI-МИ (LLaMA)",
-        "ai_brain_desc": "LLaMA 3.1 нейрожелісі арқылы мәтінді жақсартады",
+        "ai_brain": "AI-МИ",
+        "ai_brain_desc": "Нейрожелі арқылы мәтінді жақсартады",
         "ai_brain_enable": "AI-миды қосу",
         "ai_brain_warn": "⚠️ API шығыны 1.5 есе артады",
         "ai_brain_benefits": "✓ Транскрипция қателерін түзетеді\n✓ Тыныс белгілерін қосады\n✓ IT терминдерді танады\n✓ Грамматиканы жақсартады",
@@ -1954,7 +1954,7 @@ class VoiceToTextApp(ctk.CTk):
         # Row 4: Users count (public metric)
         self.users_count_label = ctk.CTkLabel(
             footer, text="👥 ... пользователей",
-            font=ctk.CTkFont(size=9),
+            font=ctk.CTkFont(size=11),
             text_color=COLORS["text_muted"]
         )
         self.users_count_label.pack(anchor="center", pady=(2, 0))
@@ -1984,12 +1984,17 @@ class VoiceToTextApp(ctk.CTk):
                 }
                 resp = requests.post(url, headers=headers, json={}, timeout=5)
                 count = resp.json()
+                print(f"[DEBUG] Users count response: {count} (type: {type(count).__name__})")
                 if isinstance(count, int) and count > 0:
-                    self.after(0, lambda: self.users_count_label.configure(
-                        text=f"👥 {count:,} пользователей".replace(",", " ")
+                    self.after(0, lambda c=count: self.users_count_label.configure(
+                        text=f"👥 {c:,} пользователей".replace(",", " ")
                     ))
-            except:
-                pass
+                elif isinstance(count, int) and count == 0:
+                    self.after(0, lambda: self.users_count_label.configure(
+                        text="👥 0 пользователей"
+                    ))
+            except Exception as e:
+                print(f"[ERROR] Failed to fetch users count: {e}")
         threading.Thread(target=fetch, daemon=True).start()
 
     def _open_admin_dashboard(self):
