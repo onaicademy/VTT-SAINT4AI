@@ -32,10 +32,14 @@ except ImportError:
 
 # App info
 APP_NAME = "VTT"
-APP_VERSION = "2.1"
+APP_VERSION = "2.2"
 CONFIG_FILE = "settings.json"
 HISTORY_FILE = "history.json"
 TERMS_FILE = "terms.json"
+ADMIN_MODE_FILE = "admin.key"  # If this file exists, admin mode is enabled
+
+# Check if admin mode
+ADMIN_MODE = os.path.exists(ADMIN_MODE_FILE) or "--admin" in sys.argv
 
 # Pixel Gun Style Colors
 COLORS = {
@@ -1393,12 +1397,12 @@ class VoiceToTextApp(ctk.CTk):
 
         # Main container (on top of background) - wider settings area
         main = ctk.CTkFrame(self, fg_color="transparent")
-        main.pack(fill="both", expand=True, padx=8, pady=12)
+        main.pack(fill="both", expand=True, padx=6, pady=4)
         main.lift()  # Ensure it's above background
 
         # Header with language button
         header = ctk.CTkFrame(main, fg_color="transparent")
-        header.pack(fill="x", pady=(0, 4))
+        header.pack(fill="x", pady=(0, 2))
 
         # Language switch button (top right)
         lang_btn = ctk.CTkButton(
@@ -1427,7 +1431,7 @@ class VoiceToTextApp(ctk.CTk):
 
         # Record button (compact)
         self.record_btn = PremiumRecordButton(main, command=self.toggle_recording)
-        self.record_btn.pack(pady=6)
+        self.record_btn.pack(pady=4)
 
         # Scrollable settings
         settings_frame = ctk.CTkScrollableFrame(
@@ -1738,9 +1742,9 @@ class VoiceToTextApp(ctk.CTk):
             command=self.open_terms_file
         ).pack(anchor="w", pady=(8, 2))
 
-        # Footer with clickable links - exact format requested
+        # Footer with clickable links - compact
         footer = ctk.CTkFrame(main, fg_color="transparent")
-        footer.pack(pady=(12, 0), fill="x")
+        footer.pack(pady=(4, 0), fill="x")
 
         # Row 1: Instagram
         row1 = ctk.CTkFrame(footer, fg_color="transparent")
@@ -1787,10 +1791,56 @@ class VoiceToTextApp(ctk.CTk):
         # Row 3: Build number - metallic shine
         build_label = ctk.CTkLabel(
             footer, text="✦ Build 02-777-kz ✦",
-            font=ctk.CTkFont(size=10, weight="bold"),
+            font=ctk.CTkFont(size=9, weight="bold"),
             text_color=COLORS["metallic_silver"]
         )
-        build_label.pack(anchor="center", pady=(4, 0))
+        build_label.pack(anchor="center", pady=(2, 0))
+
+        # Row 4: Users count (public metric)
+        self.users_count_label = ctk.CTkLabel(
+            footer, text="👥 ... пользователей",
+            font=ctk.CTkFont(size=9),
+            text_color=COLORS["text_muted"]
+        )
+        self.users_count_label.pack(anchor="center", pady=(2, 0))
+        self._fetch_users_count()
+
+        # Admin mode: Show dashboard button
+        if ADMIN_MODE:
+            admin_btn = ctk.CTkButton(
+                footer, text="📊 Админ-панель",
+                width=120, height=24,
+                font=ctk.CTkFont(size=9),
+                fg_color=COLORS["recording"],
+                hover_color=COLORS["recording_glow"],
+                command=self._open_admin_dashboard
+            )
+            admin_btn.pack(anchor="center", pady=(6, 0))
+
+    def _fetch_users_count(self):
+        """Fetch total users count from Supabase RPC (async)."""
+        def fetch():
+            try:
+                import requests
+                url = "https://qiyekjrpcewewxumhifc.supabase.co/rest/v1/rpc/count_unique_users"
+                headers = {
+                    "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpeWVranJwY2V3ZXd4dW1oaWZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxNjY4OTYsImV4cCI6MjA4Mzc0Mjg5Nn0.a9E7f2Uox9fDxxty-m2eTfPuiT7iNoSWQwmHl6gk9jE",
+                    "Content-Type": "application/json"
+                }
+                resp = requests.post(url, headers=headers, json={}, timeout=5)
+                count = resp.json()
+                if isinstance(count, int) and count > 0:
+                    self.after(0, lambda: self.users_count_label.configure(
+                        text=f"👥 {count:,} пользователей".replace(",", " ")
+                    ))
+            except:
+                pass
+        threading.Thread(target=fetch, daemon=True).start()
+
+    def _open_admin_dashboard(self):
+        """Open Supabase dashboard directly."""
+        # Direct link to Supabase Table Editor
+        webbrowser.open("https://supabase.com/dashboard/project/qiyekjrpcewewxumhifc/editor")
 
     def _get_last_history(self):
         """Get last history entry, show up to 100 chars (2 lines)."""
