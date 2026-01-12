@@ -1,8 +1,15 @@
-# VTT - Сборка для macOS
+# VTT v2.3 - Сборка для macOS
 
 ## ВАЖНО: Актуальный код на GitHub!
 
-Последняя версия VTT v2.1 с аналитикой уже на GitHub. Просто клонируй и собирай!
+Последняя версия **VTT v2.3** с новой системой горячих клавиш уже на GitHub!
+
+### Что нового в v2.3:
+- Новый UI захвата клавиш: Изменить → зажать клавиши → Сохранить
+- Поддержка любых комбинаций (Ctrl+Shift+Alt+Win+любая клавиша)
+- Поддержка только модификаторов (Ctrl+Shift)
+- Улучшенный скролл тачпада для виджета
+- Аналитика Supabase
 
 ## Шаг 1: Клонировать АКТУАЛЬНУЮ версию
 
@@ -28,7 +35,7 @@ git checkout -b macos
 ---
 
 ```
-Привет! Мне нужно адаптировать VTT (Voice-to-Text) приложение для macOS и собрать DMG установщик.
+Привет! Мне нужно адаптировать VTT v2.3 (Voice-to-Text) приложение для macOS и собрать DMG установщик.
 
 Я уже на ветке `macos` - все изменения делай здесь и потом запушь в эту ветку.
 
@@ -40,13 +47,20 @@ git checkout -b macos
    - Проверить `pyautogui` - может потребоваться разрешение Accessibility
    - Убрать `ctypes.windll` вызовы - это Windows API
 
-2. **Создать macOS версию файла** - можно назвать `voice_to_text_mac.py`
+2. **ВАЖНО - Новая система горячих клавиш в v2.3:**
+   - В Windows используется `keyboard.hook()` для захвата клавиш
+   - На Mac нужно использовать `pynput.keyboard.Listener`
+   - Логика: start_hotkey_capture() → пользователь зажимает клавиши → save_hotkey_capture()
+   - Методы: start_hotkey_capture, save_hotkey_capture, cancel_hotkey_capture, _update_hotkey_display
+   - Адаптировать под pynput сохраняя UX
 
-3. **Создать иконку для Mac:**
+3. **Создать macOS версию файла** - можно назвать `voice_to_text_mac.py`
+
+4. **Создать иконку для Mac:**
    - Конвертировать icon.ico в icon.icns (формат macOS)
    - Или создать новую иконку
 
-4. **Собрать .app и DMG:**
+5. **Собрать .app и DMG:**
    ```bash
    pip3 install -r requirements.txt
    pip3 install pyinstaller pynput
@@ -54,11 +68,11 @@ git checkout -b macos
    pyinstaller --onefile --windowed --name "VTT" --icon icon.icns voice_to_text_mac.py
 
    # Создать DMG
-   hdiutil create -volname "VTT @SAINT4AI" -srcfolder dist/VTT.app -ov -format UDZO VTT_v2.0_Mac.dmg
+   hdiutil create -volname "VTT @SAINT4AI" -srcfolder dist/VTT.app -ov -format UDZO VTT_v2.3_Mac.dmg
    ```
 
-5. **Важные отличия macOS:**
-   - Горячие клавиши: вместо F9 лучше использовать Cmd+Shift+R или подобное
+6. **Важные отличия macOS:**
+   - Горячие клавиши: вместо Win использовать Cmd
    - Нужно запросить разрешение на микрофон и Accessibility в System Preferences
    - Floating widget может работать иначе (проверить attributes)
 
@@ -66,7 +80,7 @@ git checkout -b macos
 - Закоммить все изменения
 - Запушить в ветку macos: `git push -u origin macos`
 
-6. **ВАЖНО - Аналитика:**
+7. **ВАЖНО - Аналитика:**
    - Файл `analytics.py` уже настроен с Supabase
    - НЕ МЕНЯТЬ URL и ключи в analytics.py - они уже правильные
    - Supabase URL: https://qiyekjrpcewewxumhifc.supabase.co
@@ -84,7 +98,7 @@ git checkout -b macos
 brew install python3
 
 # Установить зависимости
-pip3 install customtkinter pillow sounddevice numpy scipy groq pyperclip pyautogui python-dotenv pyinstaller pynput
+pip3 install customtkinter pillow sounddevice numpy scipy groq pyperclip pyautogui python-dotenv pyinstaller pynput requests
 ```
 
 ## Шаг 5: После сборки
@@ -109,10 +123,11 @@ DMG файл будет в текущей папке. Можно:
 
 ```
 VTT-SAINT4AI/
-├── voice_to_text.py      # Windows версия
+├── voice_to_text.py      # Windows версия v2.3
 ├── voice_to_text_mac.py  # macOS версия (создать)
-├── build.py              # Windows билд скрипт
+├── build_both.py         # Windows билд скрипт (две версии)
 ├── build_mac.py          # macOS билд скрипт (создать)
+├── analytics.py          # Supabase аналитика
 ├── requirements.txt      # Зависимости
 ├── icon.ico              # Windows иконка
 ├── icon.icns             # macOS иконка (создать)
