@@ -1575,12 +1575,15 @@ class VoiceToTextApp(ctk.CTk):
         self.record_btn = PremiumRecordButton(main, command=self.toggle_recording, translator=self.t)
         self.record_btn.pack(pady=4)
 
-        # Scrollable settings
+        # Scrollable settings with improved touchpad support
         settings_frame = ctk.CTkScrollableFrame(
             main, fg_color="transparent",
             scrollbar_button_color=COLORS["border"]
         )
         settings_frame.pack(fill="both", expand=True)
+
+        # Improve touchpad scrolling
+        self._setup_touchpad_scroll(settings_frame)
 
         # === HISTORY SECTION (FIRST!) ===
         self._section(settings_frame, f"{self.t('history')} ({len(self.history)})", self.t("history_desc"))
@@ -2041,6 +2044,43 @@ class VoiceToTextApp(ctk.CTk):
         self.history_label.configure(
             text=self._get_last_history() if self.history else self.t("no_history")
         )
+
+    def _setup_touchpad_scroll(self, scrollable_frame):
+        """Setup smooth touchpad scrolling for CTkScrollableFrame."""
+        # Access internal canvas
+        try:
+            canvas = scrollable_frame._parent_canvas
+        except AttributeError:
+            return
+
+        scroll_accumulator = [0]  # Use list for mutability in closure
+
+        def on_mousewheel(event):
+            # Touchpad sends small deltas, mouse wheel sends 120/-120
+            scroll_accumulator[0] += event.delta
+
+            # Lower threshold for smoother touchpad response
+            threshold = 30
+
+            if abs(scroll_accumulator[0]) >= threshold:
+                # Calculate scroll amount
+                units = -1 if scroll_accumulator[0] > 0 else 1
+                canvas.yview_scroll(units, "units")
+                # Keep remainder for smooth accumulation
+                scroll_accumulator[0] = scroll_accumulator[0] % threshold if scroll_accumulator[0] > 0 else -(abs(scroll_accumulator[0]) % threshold)
+
+        # Bind to canvas and frame
+        canvas.bind("<MouseWheel>", on_mousewheel)
+        scrollable_frame.bind("<MouseWheel>", on_mousewheel)
+
+        # Bind to all children recursively
+        def bind_children(widget):
+            widget.bind("<MouseWheel>", on_mousewheel)
+            for child in widget.winfo_children():
+                bind_children(child)
+
+        # Bind after widget is fully created
+        scrollable_frame.after(100, lambda: bind_children(scrollable_frame))
 
     def _section(self, parent, title, desc=None):
         # Title - always left aligned
