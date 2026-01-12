@@ -1,121 +1,167 @@
-# VTT @SAINT4AI
+# 🎤 Voice to Text for macOS - Fix: Trackpad Scroll
 
-**Premium Voice-to-Text** для Windows с AI-транскрибацией через Groq Whisper.
+## 🐛 Проблема: Trackpad Scroll не работает
 
-Мгновенный голосовой ввод одной клавишей. Говоришь - текст появляется.
+**Симптомы:**
+- ✅ Scroll мышкой = работает
+- ❌ Scroll тачпадом = не работает
 
----
-
-## Возможности
-
-**Запись и транскрибация**
-- Whisper Large V3 через Groq API (бесплатно, быстро, точно)
-- Автоматическая пунктуация и форматирование
-- Поддержка русского и английского языков
-
-**Удобство использования**
-- Глобальная горячая клавиша (F9 по умолчанию)
-- Автовставка текста в активное поле (Ctrl+V)
-- Копирование в буфер обмена
-- Плавающий виджет при сворачивании окна
-
-**Премиум дизайн**
-- Темная тема с плавными анимациями
-- Визуализация уровня микрофона в реальном времени
-- iPhone-стиль звуковых уведомлений
-
-**Умные функции**
-- Автостоп после 20 сек тишины
-- Максимальная длительность 60 сек
-- История записей (до 50, автоочистка)
-- Тестирование микрофона без записи
+**Причина:** CustomTkinter on macOS не обрабатывает trackpad события корректно.
 
 ---
 
-## Быстрый старт
+## ✅ Решение (3 варианта)
 
-### Скачать готовый EXE
+### Вариант 1: Простой класс (РЕКОМЕНДУЕТСЯ)
 
-1. Перейдите в [Releases](../../releases)
-2. Скачайте VTT.exe
-3. Запустите и введите Groq API ключ
+```python
+import customtkinter as ctk
 
-### Получение API ключа (бесплатно)
+class ScrollableTextbox(ctk.CTkTextbox):
+    """CTkTextbox с поддержкой trackpad scroll на macOS"""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Обработка всех scroll событий
+        self.bind('<MouseWheel>', self._on_scroll)
+        self.bind('<Button-4>', self._on_scroll)  # trackpad up
+        self.bind('<Button-5>', self._on_scroll)  # trackpad down
+    
+    def _on_scroll(self, event):
+        """Единый обработчик для mouse wheel и trackpad"""
+        # Trackpad: event.num = 4 (up) или 5 (down)
+        if hasattr(event, 'num') and event.num in (4, 5):
+            direction = -3 if event.num == 4 else 3  # trackpad = больше
+        # Mouse wheel: event.delta > 0 (up) или < 0 (down)
+        elif hasattr(event, 'delta'):
+            direction = -1 if event.delta > 0 else 1
+        else:
+            return
+        
+        self.yview_scroll(direction, 'units')
+        return 'break'  # Остановить propagation
+```
 
-1. Откройте [console.groq.com](https://console.groq.com)
-2. Создайте аккаунт
-3. Перейдите в API Keys → Create API Key
-4. Скопируйте ключ (начинается с gsk_)
+**Использование в приложении:**
+```python
+# Вместо:
+self.text_output = ctk.CTkTextbox(self, height=250)
 
----
-
-## Использование
-
-1. Запустите VTT
-2. Вставьте API ключ → нажмите "Сохранить"
-3. Выберите микрофон → нажмите "Тест" для проверки
-4. Откройте любое поле ввода (браузер, мессенджер, редактор)
-5. Нажмите **F9** → говорите → нажмите **F9** снова
-6. Текст автоматически вставится
-
-**Плавающий виджет**: сверните окно - появится мини-кнопка записи. Двойной клик вернет окно.
-
----
-
-## Сборка из исходников
-
-    # Клонировать репозиторий
-    git clone https://github.com/saint4ai/VoiceToText.git
-    cd VoiceToText
-
-    # Установить зависимости
-    pip install -r requirements.txt
-
-    # Запустить
-    python voice_to_text.py
-
-    # Или собрать EXE
-    python create_icon.py
-    python build.py
-    # Результат: dist/VTT.exe
+# Используйте:
+self.text_output = ScrollableTextbox(self, height=250)
+```
 
 ---
 
-## Требования
+### Вариант 2: Функция для любого виджета
 
-- Windows 10/11
-- Микрофон
-- Интернет (для API)
+```python
+def enable_trackpad_scroll(widget):
+    """Добавить trackpad scroll к любому CTkTextbox"""
+    def on_scroll(event):
+        if hasattr(event, 'num') and event.num in (4, 5):
+            distance = -3 if event.num == 4 else 3
+        elif hasattr(event, 'delta'):
+            distance = -1 if event.delta > 0 else 1
+        else:
+            return
+        
+        widget.yview_scroll(distance, 'units')
+        return 'break'
+    
+    widget.bind('<MouseWheel>', on_scroll)
+    widget.bind('<Button-4>', on_scroll)
+    widget.bind('<Button-5>', on_scroll)
 
-Для сборки из исходников:
-- Python 3.10+
-
----
-
-## Технологии
-
-| Компонент | Технология |
-|-----------|------------|
-| GUI | CustomTkinter |
-| Запись аудио | sounddevice + numpy |
-| Транскрибация | Groq Whisper Large V3 |
-| Горячие клавиши | keyboard |
-| Сборка | PyInstaller |
-
----
-
-## Структура проекта
-
-    VoiceToText/
-    ├── voice_to_text.py    # Главное приложение
-    ├── create_icon.py      # Генерация иконки
-    ├── build.py            # Сборка EXE
-    ├── requirements.txt    # Зависимости
-    ├── settings.json       # Настройки (автоматически)
-    └── history.json        # История записей
+# В вашем App.__init__:
+enable_trackpad_scroll(self.text_output)
+enable_trackpad_scroll(self.info_text)
+```
 
 ---
 
-## Лицензия
+### Вариант 3: Обновить текущий код минимально
 
-MIT License - 2024 SAINT4AI
+В `voice_to_text_app.py` найди строку:
+
+```python
+self.text_output = ctk.CTkTextbox(self, height=250, font=("Courier", 11))
+self.text_output.pack(...)
+```
+
+И добавь после:
+
+```python
+# Fix trackpad scroll для macOS
+def on_scroll(event):
+    if hasattr(event, 'num') and event.num in (4, 5):
+        self.text_output.yview_scroll(-3 if event.num == 4 else 3, 'units')
+    elif hasattr(event, 'delta'):
+        self.text_output.yview_scroll(-1 if event.delta > 0 else 1, 'units')
+    return 'break'
+
+self.text_output.bind('<MouseWheel>', on_scroll)
+self.text_output.bind('<Button-4>', on_scroll)
+self.text_output.bind('<Button-5>', on_scroll)
+```
+
+---
+
+## 🧪 Тестирование
+
+```python
+# Добавь логирование для дебага:
+def on_scroll(event):
+    print(f"Event num: {getattr(event, 'num', 'N/A')}")
+    print(f"Event delta: {getattr(event, 'delta', 'N/A')}")
+    print(f"Event keysym: {event.keysym}")
+    # ... rest of code
+```
+
+Покрути тачпадом, посмотри какие события приходят. Это поможет понять конкретно на твой маке.
+
+---
+
+## 📊 Event Values Reference
+
+| Источник | event.num | event.delta | Комента |
+|----------|-----------|-------------|---------|
+| Mouse wheel up | — | > 0 | Windows/Linux mouse |
+| Mouse wheel down | — | < 0 | Windows/Linux mouse |
+| Trackpad up | 4 | — | macOS trackpad |
+| Trackpad down | 5 | — | macOS trackpad |
+
+---
+
+## 💡 Почему это работает
+
+- **Mouse wheel** отправляет `<MouseWheel>` с `event.delta`
+- **Trackpad macOS** отправляет `<Button-4>` (up) и `<Button-5>` (down) с `event.num`
+- Default CustomTkinter слушает только `<MouseWheel>`, поэтому trackpad не ловится
+
+Добавляя оба события — ловим и mouse, и trackpad. ✅
+
+---
+
+## 🎯 TL;DR
+
+Скопируй и вставь класс `ScrollableTextbox` в начало файла, замени `ctk.CTkTextbox` на `ScrollableTextbox` — готово!
+
+```python
+class ScrollableTextbox(ctk.CTkTextbox):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for event in ['<MouseWheel>', '<Button-4>', '<Button-5>']:
+            self.bind(event, self._scroll)
+    
+    def _scroll(self, event):
+        if hasattr(event, 'num') and event.num in (4, 5):
+            dist = -3 if event.num == 4 else 3
+        else:
+            dist = -1 if getattr(event, 'delta', -1) > 0 else 1
+        self.yview_scroll(dist, 'units')
+        return 'break'
+```
+
+Один класс, все решено. 🎉
